@@ -22,7 +22,7 @@ public class HandTypeStraightFlush extends HandType {
         for(EnumCardType type : EnumCardType.values()) {
             List<PlayingCard> cardsForType = CardUtils.filterCards(cards, type);
             if(cardsForType.size() >= PokerHand.SIZE) {
-                return PokerHand.STRAIGHT.match(cardsForType);
+                return HandTypeStraight.INSTANCE.match(cardsForType);
             }
         }
         return Optional.empty();

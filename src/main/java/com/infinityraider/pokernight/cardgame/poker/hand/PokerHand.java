@@ -37,7 +37,7 @@ public class PokerHand implements Comparable<PokerHand> {
     private HandType type;
     private HandValue value;
 
-    private PokerHand(List<PlayingCard> cards) {
+    public PokerHand(List<PlayingCard> cards) {
         for(HandType type : HAND_TYPES) {
             Optional<HandValue> value = type.match(cards);
             if(value.isPresent()) {

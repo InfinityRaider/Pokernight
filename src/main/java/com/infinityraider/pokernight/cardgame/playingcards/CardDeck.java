@@ -5,15 +5,29 @@ import com.google.common.collect.ImmutableSet;
 import java.util.*;
 
 public class CardDeck {
+    private final ICardDeckProvider provider;
     private final Random rng;
 
     private Deque<PlayingCard> deck;
     private Set<PlayingCard> dealt;
 
     public CardDeck() {
+        this(PlayingCard::getCards);
+    }
+
+    public CardDeck(ICardDeckProvider provider) {
+        this.provider = provider;
         this.rng = new Random();
         this.shuffle();
         this.dealt = new HashSet<>();
+    }
+
+    public ICardDeckProvider getProvider() {
+        return this.provider;
+    }
+
+    public Random getRNG() {
+        return this.rng;
     }
 
     public Set<PlayingCard> getDeckCards() {
@@ -43,12 +57,8 @@ public class CardDeck {
     }
 
     public CardDeck shuffle() {
-        this.deck = new ArrayDeque<>(CardUtils.shuffleCards(PlayingCard.getCards(), this.getRNG()));
+        this.deck = new ArrayDeque<>(CardUtils.shuffleCards(this.getProvider().getDeckCards(), this.getRNG()));
         this.dealt.clear();
         return this;
-    }
-
-    public Random getRNG() {
-        return this.rng;
     }
 }
