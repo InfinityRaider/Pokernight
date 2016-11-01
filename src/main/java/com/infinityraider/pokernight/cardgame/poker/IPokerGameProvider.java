@@ -1,7 +1,9 @@
 package com.infinityraider.pokernight.cardgame.poker;
 
+import java.util.Collection;
+
 public interface IPokerGameProvider {
-    PokerPlayer[] getPlayers(PokerGame game);
+    Collection<PokerPlayer> getPlayers(PokerGame game);
 
     void onGameCompleted();
 

@@ -9,7 +9,6 @@ import com.infinityraider.pokernight.block.BlockPokerTable;
 import com.infinityraider.pokernight.cardgame.poker.IPokerGameProvider;
 import com.infinityraider.pokernight.cardgame.poker.PokerGame;
 import com.infinityraider.pokernight.cardgame.poker.PokerPlayer;
-import com.infinityraider.pokernight.cardgame.poker.PokerPlayerImpl;
 import com.infinityraider.pokernight.reference.Names;
 import com.infinityraider.pokernight.registry.BlockRegistry;
 import net.minecraft.block.state.IBlockState;
@@ -24,10 +23,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class TileEntityPokerTable extends TileEntityBase implements IPokerGameProvider, IDebuggable {
     private static final Map<EntityPlayer, TileEntityPokerTable> formations = Maps.newIdentityHashMap();
@@ -42,10 +38,11 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
     private TileEntityPokerTable mainTile;
     private BlockPos mainTilePos;
     private EnumFacing.Axis axis;
+    private int tableId;
 
     /** Poker player data */
     private UUID currentPlayerId;
-    private PokerPlayerImpl player;
+    private PokerPlayer player;
 
     /** Poker game data */
     private PokerGame currentGame;
@@ -79,12 +76,17 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
         }
     }
 
+    public int getTableId() {
+        return this.tableId;
+    }
+
     public EnumFacing.Axis getTableOrientation() {
         return this.axis;
     }
 
-    protected void setMainTile(TileEntityPokerTable mainTile, EnumFacing.Axis axis) {
+    protected void setMainTile(TileEntityPokerTable mainTile, int id, EnumFacing.Axis axis) {
         if(mainTile != null) {
+            this.tableId = id;
             this.axis = axis;
             this.isMainTile = mainTile == this;
             this.isFormed = true;
@@ -176,6 +178,7 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
         BlockPos mainPos = new BlockPos(minX, ownPos.getY(), minZ);
         BlockPokerTable table = (BlockPokerTable) BlockRegistry.getInstance().blockPokerTable;
         TileEntityPokerTable mainTile = table.getTileEntity(this.getWorld(), mainPos);
+        int id = 0;
         for(int x = 0; x <= dx; x++) {
             for(int z = 0; z <= dz; z++) {
                 IBlockState state = table.getDefaultState();
@@ -204,9 +207,10 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
                 //update
                 BlockPos pos = mainPos.add(x, 0, z);
                 TileEntityPokerTable tileTable = table.getTileEntity(this.getWorld(), pos);
-                tileTable.setMainTile(mainTile, axis);
+                tileTable.setMainTile(mainTile, id, axis);
                 this.getWorld().setBlockState(pos, state);
                 tileTable.markForUpdate();
+                id++;
             }
         }
         if(player != null) {
@@ -239,14 +243,11 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
         }
     }
 
-    public Optional<PokerPlayer> getPokerPlayer() {
-        if(this.currentGame == null) {
-            return Optional.empty();
-        }
+    protected Optional<PokerPlayer> getPokerPlayer() {
         if(this.player == null) {
             Optional<EntityPlayer> player = this.getCurrentPlayer();
             if (player.isPresent()) {
-                this.player = new PokerPlayerImpl(this.currentGame, player.get());
+                this.player = new PokerPlayer(this.getCurrentGame(), this.getTableId());
             } else {
                 return Optional.empty();
             }
@@ -254,17 +255,47 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
         return Optional.of(this.player);
     }
 
+    public PokerGame getCurrentGame() {
+        if(!this.isMainTile()) {
+            TileEntityPokerTable main = this.getMainTile();
+            if(main != null) {
+                return main.getCurrentGame();
+            }
+        }
+        return this.currentGame;
+    }
+
     @Override
-    public PokerPlayer[] getPlayers(PokerGame game) {
+    public Collection<PokerPlayer> getPlayers(PokerGame game) {
         if(!this.isMainTile()) {
             TileEntityPokerTable main = this.getMainTile();
             if(main != null) {
                 return main.getPlayers(game);
             }
         }
+        this.currentGame = game;
         List<PokerPlayer> players = Lists.newArrayList();
-        //TODO
-        return players.toArray(new PokerPlayer[players.size()]);
+        int dx;
+        int dz;
+        if(this.getTableOrientation() == EnumFacing.Axis.X) {
+            dx = 4;
+            dz = 2;
+        } else {
+            dx = 2;
+            dz = 4;
+        }
+        for(int x = 0; x < dx; x++) {
+            for (int z = 0; z < dz; z++) {
+                TileEntity tile = getWorld().getTileEntity(this.getPos().add(x, 0, z));
+                if (tile instanceof TileEntityPokerTable) {
+                    Optional<PokerPlayer> player = ((TileEntityPokerTable) tile).getPokerPlayer();
+                    if (player.isPresent()) {
+                        players.add(player.get());
+                    }
+                }
+            }
+        }
+        return players;
     }
 
     @Override
@@ -294,6 +325,7 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
     protected void writeTileNBT(NBTTagCompound tag) {
         tag.setBoolean(Names.NBT.TABLE_MAIN, this.isMainTile);
         tag.setBoolean(Names.NBT.TABLE_FORMED, this.isFormed);
+        tag.setInteger(Names.NBT.TABLE_ID, this.tableId);
         if(this.axis != null) {
             tag.setInteger(Names.NBT.TABLE_AXIS, this.axis.ordinal());
         }
@@ -315,6 +347,7 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
     protected void readTileNBT(NBTTagCompound tag) {
         this.isMainTile = tag.getBoolean(Names.NBT.TABLE_MAIN);
         this.isFormed = tag.getBoolean(Names.NBT.TABLE_FORMED);
+        this.tableId = tag.getInteger(Names.NBT.TABLE_ID);
         if(tag.hasKey(Names.NBT.TABLE_AXIS)) {
             this.axis = EnumFacing.Axis.values()[tag.getInteger(Names.NBT.TABLE_AXIS)];
         } else {

@@ -1,9 +1,11 @@
 package com.infinityraider.pokernight.cardgame.poker;
 
 import com.infinityraider.pokernight.cardgame.playingcards.PlayingCard;
+import com.infinityraider.pokernight.reference.Names;
+import net.minecraft.nbt.NBTTagCompound;
 import org.apache.commons.lang3.tuple.MutablePair;
 
-public abstract class PokerPlayer {
+public class PokerPlayer {
     private final PokerGame game;
     private int id;
 
@@ -12,7 +14,8 @@ public abstract class PokerPlayer {
     private int bet;
     private MutablePair<PlayingCard, PlayingCard> hand;
 
-    public PokerPlayer(PokerGame game) {
+    public PokerPlayer(PokerGame game, int id) {
+        this.id = id;
         this.game = game;
         this.state = PlayerState.WAITING;
         this.hand = new MutablePair<>();
@@ -26,10 +29,6 @@ public abstract class PokerPlayer {
 
     public int getPlayerId() {
         return this.id;
-    }
-
-    void setPlayerId(int id) {
-        this.id = id;
     }
 
     PokerPlayer dealCard(PlayingCard card) {
@@ -121,5 +120,38 @@ public abstract class PokerPlayer {
 
     public PlayingCard getSecondCard() {
         return this.hand.getRight();
+    }
+
+    public final NBTTagCompound writeToNBT() {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setInteger(Names.NBT.PLAYER_ID, this.id);
+        tag.setInteger(Names.NBT.PLAYER_STATE, this.state.ordinal());
+        tag.setInteger(Names.NBT.PLAYER_STACK, this.stack);
+        tag.setInteger(Names.NBT.PLAYER_BET, this.bet);
+        if(this.hand.getLeft() != null) {
+            tag.setInteger(Names.NBT.PLAYER_HAND_1, this.hand.getLeft().getCardIndex());
+        }
+        if(this.hand.getRight() != null) {
+            tag.setInteger(Names.NBT.PLAYER_HAND_2, this.hand.getRight().getCardIndex());
+        }
+        return tag;
+    }
+
+    public final PokerPlayer readFromNBT(NBTTagCompound tag) {
+        this.id = tag.getInteger(Names.NBT.PLAYER_ID);
+        this.state = PlayerState.values()[tag.getInteger(Names.NBT.GAME_PHASE)];
+        this.stack = tag.getInteger(Names.NBT.PLAYER_STACK);
+        this.bet = tag.getInteger(Names.NBT.PLAYER_BET);
+        if(tag.hasKey(Names.NBT.PLAYER_HAND_1)) {
+            this.hand.setLeft(PlayingCard.getCard(tag.getInteger(Names.NBT.PLAYER_HAND_1)));
+        } else {
+            this.hand.setLeft(null);
+        }
+        if(tag.hasKey(Names.NBT.PLAYER_HAND_2)) {
+            this.hand.setRight(PlayingCard.getCard(tag.getInteger(Names.NBT.PLAYER_HAND_2)));
+        } else {
+            this.hand.setRight(null);
+        }
+        return this;
     }
 }

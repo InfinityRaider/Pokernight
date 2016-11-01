@@ -8,6 +8,8 @@ import com.infinityraider.pokernight.cardgame.poker.hand.PokerHand;
 import com.infinityraider.pokernight.reference.Names;
 import com.mojang.realmsclient.util.Pair;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.*;
 
@@ -20,7 +22,8 @@ public class PokerGame {
     private List<PlayingCard> closedCards;
     private List<PlayingCard> closedCardsCache;
 
-    private PokerPlayer[] players;
+    private Map<Integer, PokerPlayer> players;
+    private int[] activePlayers;
     private GamePhase phase;
     private int playerDealer;
 
@@ -33,6 +36,7 @@ public class PokerGame {
     private int lastRaise;
 
     public PokerGame(IPokerGameProvider provider) {
+        this.players = new IdentityHashMap<>();
         this.gameProvider = provider;
         this.deck = new CardDeck();
         this.playerDealer = -1;
@@ -72,26 +76,26 @@ public class PokerGame {
     }
 
     public PokerPlayer getPlayerForIndex(int index) {
-        return this.players[(this.playerDealer + index + 3) % this.players.length];
+        return this.players.get(activePlayers[(this.playerDealer + index + 3) % this.activePlayers.length]);
     }
 
     public PokerPlayer getDealer() {
-        return this.players[this.playerDealer];
+        return this.players.get(this.activePlayers[this.playerDealer]);
     }
 
     public PokerPlayer getSmallBlindPlayer() {
-        if(this.players.length == 2) {
+        if(this.activePlayers.length == 2) {
             return this.getDealer();
         } else {
-            return this.players[(this.playerDealer + 1) % this.players.length];
+            return this.getPlayerForIndex((this.playerDealer + 1) % this.activePlayers.length);
         }
     }
 
     public PokerPlayer getBigBlindPlayer() {
-        if(this.players.length == 2) {
-            return this.players[(this.playerDealer + 1) % 2];
+        if(this.activePlayers.length == 2) {
+            return this.getPlayerForIndex((this.playerDealer + 1) % 2);
         } else {
-            return this.players[(this.playerDealer + 2) % this.players.length];
+            return this.getPlayerForIndex((this.playerDealer + 2) % this.activePlayers.length);
         }
     }
 
@@ -102,16 +106,23 @@ public class PokerGame {
     public void nextGame() {
         this.deck.shuffle();
         this.blind = this.getGameProvider().getBlind();
-        this.players = this.getGameProvider().getPlayers(this);
-        for(int i = 0; i < this.players.length; i++) {
-            this.players[i].setPlayerId(i);
-        }
+        this.gatherPlayers();
         this.phase = GamePhase.PRE_GAME;
         this.openCards = new ArrayList<>();
         this.closedCards = new ArrayList<>();
         this.openCardsCache = ImmutableList.of();
         this.closedCardsCache = ImmutableList.of();
         this.playerDealer = this.playerDealer + 1;
+    }
+
+    protected void gatherPlayers() {
+        this.players.clear();
+        List<Integer> playerIds = Lists.newArrayList();
+        this.getGameProvider().getPlayers(this).stream().forEach(player -> {
+            this.players.put(player.getPlayerId(), player);
+            playerIds.add(player.getPlayerId());
+        });
+        this.activePlayers = ArrayUtils.toPrimitive(playerIds.toArray(new Integer[playerIds.size()]));
     }
 
     public void performPlayerAction(PokerPlayer player, PlayerAction action) {
@@ -129,7 +140,7 @@ public class PokerGame {
     }
 
     protected void collectBets() {
-        for(PokerPlayer player : this.players) {
+        for(PokerPlayer player : this.players.values()) {
             this.pool = player.collectBet() + this.pool;
         }
     }
@@ -138,7 +149,7 @@ public class PokerGame {
         this.phase = this.getPhase().nextPhase();
         this.playerTurn = 0;
         this.bettingComplete = false;
-        for(PokerPlayer player : this.players) {
+        for(PokerPlayer player : this.players.values()) {
             player.setState(PlayerState.WAITING);
         }
         if(this.phase == GamePhase.END_GAME) {
@@ -176,7 +187,7 @@ public class PokerGame {
     protected void splitPrizeAmongWinners() {
         List<Pair<PokerPlayer, PokerHand>> potentialWinners = new ArrayList<>();
         PokerHand highest = null;
-        for(PokerPlayer player : this.players) {
+        for(PokerPlayer player : this.players.values()) {
             if(player.getState().isInGame()) {
                 List<PlayingCard> cards = Lists.newArrayList(this.getOpenCards());
                 cards.add(player.getFirstCard());
@@ -207,7 +218,7 @@ public class PokerGame {
     }
 
     protected void resetPlayerStatesOnNewRaise() {
-        for(PokerPlayer player : this.players) {
+        for(PokerPlayer player : this.players.values()) {
             if(player == this.lastRaiser || player.getState().ignoreRaises()) {
                 continue;
             }
@@ -216,9 +227,9 @@ public class PokerGame {
     }
 
     protected void incrementPlayerTurn() {
-        this.playerTurn = (this.playerTurn + 1) % this.players.length;
+        this.playerTurn = (this.playerTurn + 1) % this.activePlayers.length;
         while(this.getBettingPlayer().getState() != PlayerState.WAITING) {
-            this.playerTurn = (this.playerTurn + 1) % this.players.length;
+            this.playerTurn = (this.playerTurn + 1) % this.activePlayers.length;
         }
         if(this.getBettingPlayer() == this.lastRaiser && this.lastRaiser.getState() == PlayerState.RAISED) {
             this.bettingComplete = true;
@@ -230,7 +241,7 @@ public class PokerGame {
     }
 
     protected void dealCards() {
-        for(int i = 0; i < this.players.length * 2; i++) {
+        for(int i = 0; i < this.activePlayers.length * 2; i++) {
             Optional<PlayingCard> card = this.deck.dealCard();
             if(card.isPresent()) {
                 this.getPlayerForIndex(i).dealCard(card.get());
@@ -239,7 +250,7 @@ public class PokerGame {
     }
 
     protected void returnCards() {
-        for(PokerPlayer player : this.players) {
+        for(PokerPlayer player : this.players.values()) {
             player.returnHand();
         }
     }
@@ -249,7 +260,7 @@ public class PokerGame {
         tag.setIntArray(Names.NBT.GAME_DECK, this.deck.writeToIntArray());
         tag.setIntArray(Names.NBT.GAME_OPEN_CARDS, PlayingCard.getIntArrayFromCardList(this.openCards));
         tag.setIntArray(Names.NBT.GAME_CLOSED_CARDS, PlayingCard.getIntArrayFromCardList(this.closedCards));
-        //TODO: write players
+        tag.setTag(Names.NBT.GAME_PLAYERS, this.writePlayersToNBT());
         tag.setInteger(Names.NBT.GAME_PHASE, this.phase.ordinal());
         tag.setInteger(Names.NBT.GAME_DEALER, this.playerDealer);
         tag.setInteger(Names.NBT.GAME_PLAYER_TURN, this.playerTurn);
@@ -263,18 +274,31 @@ public class PokerGame {
         return tag;
     }
 
+    protected NBTTagCompound writePlayersToNBT() {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setIntArray(Names.NBT.GAME_ACTIVE_PLAYERS, this.activePlayers);
+        NBTTagList list = new NBTTagList();
+        for(PokerPlayer player : this.players.values()) {
+            NBTTagCompound entry = player.writeToNBT();
+            entry.setInteger(Names.NBT.ID, player.getPlayerId());
+            list.appendTag(entry);
+        }
+        tag.setTag(Names.NBT.GAME_PLAYERS, list);
+        return tag;
+    }
+
     public PokerGame readFromNBT(NBTTagCompound tag) {
         this.deck = new CardDeck().readFromIntArray(tag.getIntArray(Names.NBT.GAME_DECK));
         this.openCards = PlayingCard.getCardListFromIntArray(tag.getIntArray(Names.NBT.GAME_OPEN_CARDS));
         this.openCardsCache = ImmutableList.copyOf(this.openCards);
         this.closedCards = PlayingCard.getCardListFromIntArray(tag.getIntArray(Names.NBT.GAME_CLOSED_CARDS));
         this.closedCardsCache = ImmutableList.copyOf(this.closedCards);
-        //TODO: read players
+        this.readPlayersFromNBT(tag.getCompoundTag(Names.NBT.GAME_PLAYERS));
         this.phase = GamePhase.values()[tag.getInteger(Names.NBT.GAME_PHASE)];
         this.playerDealer = tag.getInteger(Names.NBT.GAME_DEALER);
         this.playerTurn = tag.getInteger(Names.NBT.GAME_PLAYER_TURN);
         if(tag.hasKey(Names.NBT.GAME_CURRENT_RAISER)) {
-            this.lastRaiser = this.players[tag.getInteger(Names.NBT.GAME_CURRENT_RAISER)];
+            this.lastRaiser = this.players.get(tag.getInteger(Names.NBT.GAME_CURRENT_RAISER));
         } else {
             this.lastRaiser = null;
         }
@@ -283,5 +307,16 @@ public class PokerGame {
         this.blind = tag.getInteger(Names.NBT.GAME_BLIND);
         this.lastRaise = tag.getInteger(Names.NBT.GAME_LAST_RAISE);
         return this;
+    }
+
+    protected void readPlayersFromNBT(NBTTagCompound tag) {
+        this.gatherPlayers();
+        NBTTagList list = tag.getTagList(Names.NBT.GAME_PLAYERS, 10);
+        int count = list.tagCount();
+        for(int i = 0; i < count; i++) {
+            NBTTagCompound entry = list.getCompoundTagAt(i);
+            this.players.get(entry.getInteger(Names.NBT.ID)).readFromNBT(entry);
+        }
+        this.activePlayers = tag.getIntArray(Names.NBT.GAME_ACTIVE_PLAYERS);
     }
 }
