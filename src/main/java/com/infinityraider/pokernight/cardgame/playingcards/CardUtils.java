@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("unused")
 public final class CardUtils {
     private CardUtils() {}
 

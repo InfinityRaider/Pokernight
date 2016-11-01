@@ -1,8 +1,10 @@
 package com.infinityraider.pokernight.cardgame.playingcards;
 
 import com.google.common.collect.ImmutableSet;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public final class PlayingCard implements Comparable<PlayingCard> {
     private static final Map<EnumCardType, Map<EnumCardValue, PlayingCard>> CARD_MAP = new HashMap<>();
@@ -10,14 +12,6 @@ public final class PlayingCard implements Comparable<PlayingCard> {
 
     public static Set<PlayingCard> getCards() {
         return CARDS;
-    }
-
-    public static PlayingCard getCard(EnumCardType type, EnumCardValue value) {
-        return getCard(value, type);
-    }
-
-    public static PlayingCard getCard(EnumCardValue value, EnumCardType type) {
-        return CARD_MAP.get(type).get(value);
     }
 
     private final EnumCardType type;
@@ -38,6 +32,10 @@ public final class PlayingCard implements Comparable<PlayingCard> {
 
     public int value() {
         return this.getValue().value();
+    }
+
+    public int getCardIndex() {
+        return this.getValue().ordinal() + (this.getType().ordinal() * EnumCardValue.values().length);
     }
 
     @Override
@@ -63,7 +61,7 @@ public final class PlayingCard implements Comparable<PlayingCard> {
 
     @Override
     public int hashCode() {
-        return (this.getValue().ordinal() << 2) | (this.getType().ordinal());
+        return this.getCardIndex();
     }
 
     @Override
@@ -71,6 +69,66 @@ public final class PlayingCard implements Comparable<PlayingCard> {
         return "card." + this.getValue().describe() + "." + this.getType().describe();
     }
 
+
+    /**
+     * Utility methods to retrieve cards
+     * ---------------------------------
+     */
+
+    /**
+     * Gets the card from its index (returned by PlayingCard#getCardIndex() )
+     * @param index the card index
+     * @return the playing card with this index
+     */
+    public static PlayingCard getCard(int index) {
+        index = index % (EnumCardValue.values().length * EnumCardValue.values().length);
+        int type = index / EnumCardValue.values().length;
+        int value = index % EnumCardValue.values().length;
+        return getCard(EnumCardType.values()[type], EnumCardValue.values()[value]);
+    }
+
+    /**
+     * Gets the card for a type and value
+     * @param type the card type
+     * @param value the card value
+     * @return the card with this type and value
+     */
+    public static PlayingCard getCard(EnumCardType type, EnumCardValue value) {
+        return getCard(value, type);
+    }
+
+    /**
+     * Gets the card for a type and value
+     * @param value the card value
+     * @param type the card type
+     * @return the card with this type and value
+     */
+    public static PlayingCard getCard(EnumCardValue value, EnumCardType type) {
+        return CARD_MAP.get(type).get(value);
+    }
+
+    /**
+     * Serializes a list of cards into an int array
+     * @param cards list of cards
+     * @return the same list of cards represented as an int array
+     */
+    public static int[] getIntArrayFromCardList(List<PlayingCard> cards) {
+        return ArrayUtils.toPrimitive(cards.stream().map(PlayingCard::getCardIndex).collect(Collectors.toList()).toArray(new Integer[cards.size()]));
+    }
+
+    /**
+     * Deserializes an int array into a list of cards
+     * @param array an int array representing card indices
+     * @return the list of cards represented by the passed array
+     */
+    public static List<PlayingCard> getCardListFromIntArray(int[] array) {
+        return Arrays.stream(array).mapToObj(PlayingCard::getCard).collect(Collectors.toList());
+    }
+
+    /**
+     * private method used to initialize all 52 different cards and store them in the static fields
+     * @return a set containing all the 52 cards
+     */
     private static Set<PlayingCard> buildCardListAndMap() {
         List<PlayingCard> cards = new ArrayList<>();
         for(EnumCardType type : EnumCardType.values()) {

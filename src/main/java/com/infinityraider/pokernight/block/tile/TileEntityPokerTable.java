@@ -1,0 +1,313 @@
+package com.infinityraider.pokernight.block.tile;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.infinityraider.infinitylib.block.blockstate.InfinityProperty;
+import com.infinityraider.infinitylib.block.tile.TileEntityBase;
+import com.infinityraider.pokernight.block.BlockPokerTable;
+import com.infinityraider.pokernight.cardgame.poker.IPokerGameProvider;
+import com.infinityraider.pokernight.cardgame.poker.PokerGame;
+import com.infinityraider.pokernight.cardgame.poker.PokerPlayer;
+import com.infinityraider.pokernight.cardgame.poker.PokerPlayerImpl;
+import com.infinityraider.pokernight.reference.Names;
+import com.infinityraider.pokernight.registry.BlockRegistry;
+import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+public class TileEntityPokerTable extends TileEntityBase implements IPokerGameProvider {
+    private static final Map<EntityPlayer, TileEntityPokerTable> formations = Maps.newIdentityHashMap();
+
+    public static void onPlayerRemoved(EntityPlayer player) {
+        formations.remove(player);
+    }
+
+    /** Multi-block data */
+    private boolean isMainTile;
+    private boolean isFormed;
+    private TileEntityPokerTable mainTile;
+    private BlockPos mainTilePos;
+
+    /** Poker player data */
+    private UUID currentPlayerId;
+    private PokerPlayerImpl player;
+
+    /** Poker game data */
+    private PokerGame currentGame;
+
+    public TileEntityPokerTable() {
+        super();
+    }
+
+    public boolean isFormed() {
+        return this.isFormed;
+    }
+
+    public TileEntityPokerTable getMainTile() {
+        if(this.isFormed()) {
+            if(this.mainTile == null) {
+                TileEntity tile = this.getWorld().getTileEntity(this.mainTilePos);
+                if(!(tile instanceof TileEntityPokerTable)) {
+                    this.mainTile = new TileEntityPokerTable();
+                    this.getWorld().setTileEntity(this.mainTilePos, mainTile);
+                } else {
+                    this.mainTile = (TileEntityPokerTable) tile;
+                }
+            }
+            return this.mainTile;
+        } else {
+            return this;
+        }
+    }
+
+    protected void setMainTile(TileEntityPokerTable mainTile) {
+        if(mainTile != null) {
+            this.isMainTile = mainTile == this;
+            this.isFormed = true;
+            this.mainTile = mainTile;
+            this.mainTilePos = mainTile.getPos();
+        }
+    }
+
+    public void formationClick(@Nonnull EntityPlayer player) {
+        if(this.isFormed()) {
+            return;
+        }
+        if(!formations.containsKey(player)) {
+            formations.put(player, this);
+            player.addChatComponentMessage(new TextComponentTranslation("pokernight:msg.started_formation"));
+        } else {
+            TileEntityPokerTable other = formations.get(player);
+            this.tryFormation(other, player);
+        }
+    }
+
+    public void tryFormation(TileEntityPokerTable other, @Nullable EntityPlayer player) {
+        BlockPos ownPos = this.getPos();
+        BlockPos otherPos = other.getPos();
+        if(Math.abs(ownPos.getX() - otherPos.getX()) == 3 && Math.abs(ownPos.getZ() - otherPos.getZ()) == 1) {
+            if(!checkBlocksInRage(otherPos, otherPos)) {
+                if(player != null) {
+                    player.addChatComponentMessage(new TextComponentTranslation("pokernight:msg.formation_failed.wrong_blocks"));
+                }
+            } else {
+                this.doFormation(other, player);
+            }
+        } else if(Math.abs(ownPos.getX() - otherPos.getX()) == 1 && Math.abs(ownPos.getZ() - otherPos.getZ()) == 3) {
+            if(!checkBlocksInRage(otherPos, otherPos)) {
+                if(player != null) {
+                    player.addChatComponentMessage(new TextComponentTranslation("pokernight:msg.formation_failed.wrong_blocks"));
+                }
+            } else {
+                this.doFormation(other, player);
+            }
+        } else {
+            if(player != null) {
+                player.addChatComponentMessage(new TextComponentTranslation("pokernight:msg.formation_failed.wrong_range"));
+            }
+        }
+        formations.remove(player);
+    }
+
+    protected boolean checkBlocksInRage(BlockPos a, BlockPos b) {
+        int minX = Math.min(a.getX(), b.getX());
+        int minY = Math.min(a.getY(), b.getY());
+        int minZ = Math.min(a.getZ(), b.getZ());
+        int maxX = Math.max(a.getX(), b.getX());
+        int maxY = Math.max(a.getY(), b.getY());
+        int maxZ = Math.max(a.getZ(), b.getZ());
+        int dx = maxX - minX;
+        int dy = maxY - minY;
+        int dz = maxZ - minZ;
+        BlockPos pos = new BlockPos(minX, minY, minZ);
+        for(int x = 0; x <= dx; x++) {
+            for(int y = 0; y <= dy; y++) {
+                for(int z = 0; z <= dz; z++) {
+                    IBlockState state = this.getWorld().getBlockState(pos.add(x, y, z));
+                    if(state.getBlock() instanceof BlockPokerTable) {
+                        for(InfinityProperty<Boolean> prop : BlockPokerTable.PROPERTIES) {
+                            if(prop.getValue(state)) {
+                                return false;
+                            }
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    protected void  doFormation(TileEntityPokerTable other, @Nullable EntityPlayer player) {
+        BlockPos ownPos = this.getPos();
+        BlockPos otherPos = other.getPos();
+        int minX = Math.min(ownPos.getX(), otherPos.getX());
+        int minZ = Math.min(ownPos.getZ(), otherPos.getZ());
+        int maxX = Math.max(ownPos.getX(), otherPos.getX());
+        int maxZ = Math.max(ownPos.getZ(), otherPos.getZ());
+        int dx = maxX - minX;
+        int dz = maxZ - minZ;
+        BlockPos mainPos = new BlockPos(minX, ownPos.getY(), minZ);
+        BlockPokerTable table = (BlockPokerTable) BlockRegistry.getInstance().blockPokerTable;
+        TileEntityPokerTable mainTile = table.getTileEntity(this.getWorld(), mainPos);
+        for(int x = 0; x <= dx; x++) {
+            for(int z = 0; z <= dz; z++) {
+                IBlockState state = table.getDefaultState();
+                //x connections
+                if(x == 0) {
+                    state = BlockPokerTable.Properties.CONNECTION_SOUTH.applyToBlockState(state, true);
+                    state = BlockPokerTable.Properties.CONNECTION_NORTH.applyToBlockState(state, false);
+                } else if(x == dx) {
+                    state = BlockPokerTable.Properties.CONNECTION_SOUTH.applyToBlockState(state, false);
+                    state = BlockPokerTable.Properties.CONNECTION_NORTH.applyToBlockState(state, true);
+                } else {
+                    state = BlockPokerTable.Properties.CONNECTION_SOUTH.applyToBlockState(state, true);
+                    state = BlockPokerTable.Properties.CONNECTION_NORTH.applyToBlockState(state, true);
+                }
+                //z connections
+                if(z == 0) {
+                    state = BlockPokerTable.Properties.CONNECTION_EAST.applyToBlockState(state, true);
+                    state = BlockPokerTable.Properties.CONNECTION_WEST.applyToBlockState(state, false);
+                } else if(z == dz) {
+                    state = BlockPokerTable.Properties.CONNECTION_EAST.applyToBlockState(state, false);
+                    state = BlockPokerTable.Properties.CONNECTION_WEST.applyToBlockState(state, true);
+                } else {
+                    state = BlockPokerTable.Properties.CONNECTION_EAST.applyToBlockState(state, true);
+                    state = BlockPokerTable.Properties.CONNECTION_WEST.applyToBlockState(state, true);
+                }
+                //update
+                BlockPos pos = mainPos.add(x, 0, z);
+                TileEntityPokerTable tileTable = table.getTileEntity(this.getWorld(), pos);
+                tileTable.setMainTile(mainTile);
+                this.getWorld().setBlockState(pos, state);
+                tileTable.markForUpdate();
+            }
+        }
+        if(player != null) {
+            player.addChatComponentMessage(new TextComponentTranslation("pokernight:msg.formation_complete"));
+        }
+    }
+
+    public void tryJoinGame(EntityPlayer player) {
+        if(!this.getWorld().isRemote && player != null && this.isFormed() && !getCurrentPlayer().isPresent()) {
+            this.currentPlayerId = player.getUniqueID();
+        }
+    }
+
+    public void setGameRules(EntityPlayer player) {
+        if(!this.isMainTile) {
+            TileEntityPokerTable main = this.getMainTile();
+            if(main != null) {
+                main.setGameRules(player);
+            }
+        }
+        //TODO
+    }
+
+    public Optional<EntityPlayer> getCurrentPlayer() {
+        if(this.currentPlayerId == null) {
+            return Optional.empty();
+        } else {
+            EntityPlayer player = this.getWorld().getPlayerEntityByUUID(this.currentPlayerId);
+            return player == null ? Optional.empty() : Optional.of(player);
+        }
+    }
+
+    public Optional<PokerPlayer> getPokerPlayer() {
+        if(this.currentGame == null) {
+            return Optional.empty();
+        }
+        if(this.player == null) {
+            Optional<EntityPlayer> player = this.getCurrentPlayer();
+            if (player.isPresent()) {
+                this.player = new PokerPlayerImpl(this.currentGame, player.get());
+            } else {
+                return Optional.empty();
+            }
+        }
+        return Optional.of(this.player);
+    }
+
+    @Override
+    public PokerPlayer[] getPlayers(PokerGame game) {
+        if(!this.isMainTile) {
+            TileEntityPokerTable main = this.getMainTile();
+            if(main != null) {
+                return main.getPlayers(game);
+            }
+        }
+        List<PokerPlayer> players = Lists.newArrayList();
+        //TODO
+        return players.toArray(new PokerPlayer[players.size()]);
+    }
+
+    @Override
+    public void onGameCompleted() {
+        if(!this.isMainTile) {
+            TileEntityPokerTable main = this.getMainTile();
+            if(main != null) {
+                main.onGameCompleted();
+            }
+        }
+        //TODO
+    }
+
+    @Override
+    public int getBlind() {
+        if(!this.isMainTile) {
+            TileEntityPokerTable main = this.getMainTile();
+            if(main != null) {
+                return main.getBlind();
+            }
+        }
+        //TODO
+        return 0;
+    }
+
+    @Override
+    protected void writeTileNBT(NBTTagCompound tag) {
+        tag.setBoolean(Names.NBT.TABLE_MAIN, this.isMainTile);
+        tag.setInteger(Names.NBT.TABLE_MAIN_X, this.mainTilePos.getX());
+        tag.setInteger(Names.NBT.TABLE_MAIN_Y, this.mainTilePos.getY());
+        tag.setInteger(Names.NBT.TABLE_MAIN_Z, this.mainTilePos.getZ());
+        if(this.currentPlayerId != null) {
+            tag.setString(Names.NBT.TABLE_PLAYER_ID, this.currentPlayerId.toString());
+            //TODO: write player to NBT
+        }
+        if(this.currentGame != null) {
+            tag.setTag(Names.NBT.TABLE_GAME, this.currentGame.writeToNBT());
+        }
+    }
+
+    @Override
+    protected void readTileNBT(NBTTagCompound tag) {
+        this.isMainTile = tag.getBoolean(Names.NBT.TABLE_MAIN);
+        int x = tag.getInteger(Names.NBT.TABLE_MAIN_X);
+        int y = tag.getInteger(Names.NBT.TABLE_MAIN_Y);
+        int z = tag.getInteger(Names.NBT.TABLE_MAIN_Z);
+        this.mainTilePos = new BlockPos(x, y, z);
+        if(tag.hasKey(Names.NBT.TABLE_PLAYER_ID)) {
+            this.currentPlayerId = UUID.fromString(tag.getString(Names.NBT.TABLE_PLAYER_ID));
+            //TODO: read player from NBT
+        } else {
+            this.currentPlayerId = null;
+            this.player = null;
+        }
+        if(tag.hasKey(Names.NBT.TABLE_GAME)) {
+            this.currentGame = new PokerGame(this).readFromNBT(tag.getCompoundTag(Names.NBT.TABLE_GAME));
+        } else {
+            this.currentGame = null;
+        }
+    }
+}

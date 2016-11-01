@@ -5,16 +5,15 @@ import com.google.common.collect.Lists;
 import com.infinityraider.pokernight.cardgame.playingcards.CardDeck;
 import com.infinityraider.pokernight.cardgame.playingcards.PlayingCard;
 import com.infinityraider.pokernight.cardgame.poker.hand.PokerHand;
+import com.infinityraider.pokernight.reference.Names;
 import com.mojang.realmsclient.util.Pair;
+import net.minecraft.nbt.NBTTagCompound;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class PokerGame {
     private final IPokerGameProvider gameProvider;
-    private final CardDeck deck;
+    private CardDeck deck;
 
     private List<PlayingCard> openCards;
     private List<PlayingCard> openCardsCache;
@@ -104,6 +103,9 @@ public class PokerGame {
         this.deck.shuffle();
         this.blind = this.getGameProvider().getBlind();
         this.players = this.getGameProvider().getPlayers(this);
+        for(int i = 0; i < this.players.length; i++) {
+            this.players[i].setPlayerId(i);
+        }
         this.phase = GamePhase.PRE_GAME;
         this.openCards = new ArrayList<>();
         this.closedCards = new ArrayList<>();
@@ -240,5 +242,46 @@ public class PokerGame {
         for(PokerPlayer player : this.players) {
             player.returnHand();
         }
+    }
+
+    public NBTTagCompound writeToNBT() {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setIntArray(Names.NBT.GAME_DECK, this.deck.writeToIntArray());
+        tag.setIntArray(Names.NBT.GAME_OPEN_CARDS, PlayingCard.getIntArrayFromCardList(this.openCards));
+        tag.setIntArray(Names.NBT.GAME_CLOSED_CARDS, PlayingCard.getIntArrayFromCardList(this.closedCards));
+        //TODO: write players
+        tag.setInteger(Names.NBT.GAME_PHASE, this.phase.ordinal());
+        tag.setInteger(Names.NBT.GAME_DEALER, this.playerDealer);
+        tag.setInteger(Names.NBT.GAME_PLAYER_TURN, this.playerTurn);
+        if(this.lastRaiser != null) {
+            tag.setInteger(Names.NBT.GAME_CURRENT_RAISER, this.lastRaiser.getPlayerId());
+        }
+        tag.setInteger(Names.NBT.GAME_POOL, this.pool);
+        tag.setBoolean(Names.NBT.GAME_BETS_COMPLETE, this.bettingComplete);
+        tag.setInteger(Names.NBT.GAME_BLIND, this.blind);
+        tag.setInteger(Names.NBT.GAME_LAST_RAISE, this.lastRaise);
+        return tag;
+    }
+
+    public PokerGame readFromNBT(NBTTagCompound tag) {
+        this.deck = new CardDeck().readFromIntArray(tag.getIntArray(Names.NBT.GAME_DECK));
+        this.openCards = PlayingCard.getCardListFromIntArray(tag.getIntArray(Names.NBT.GAME_OPEN_CARDS));
+        this.openCardsCache = ImmutableList.copyOf(this.openCards);
+        this.closedCards = PlayingCard.getCardListFromIntArray(tag.getIntArray(Names.NBT.GAME_CLOSED_CARDS));
+        this.closedCardsCache = ImmutableList.copyOf(this.closedCards);
+        //TODO: read players
+        this.phase = GamePhase.values()[tag.getInteger(Names.NBT.GAME_PHASE)];
+        this.playerDealer = tag.getInteger(Names.NBT.GAME_DEALER);
+        this.playerTurn = tag.getInteger(Names.NBT.GAME_PLAYER_TURN);
+        if(tag.hasKey(Names.NBT.GAME_CURRENT_RAISER)) {
+            this.lastRaiser = this.players[tag.getInteger(Names.NBT.GAME_CURRENT_RAISER)];
+        } else {
+            this.lastRaiser = null;
+        }
+        this.pool = tag.getInteger(Names.NBT.GAME_POOL);
+        this.bettingComplete = tag.getBoolean(Names.NBT.GAME_BETS_COMPLETE);
+        this.blind = tag.getInteger(Names.NBT.GAME_BLIND);
+        this.lastRaise = tag.getInteger(Names.NBT.GAME_LAST_RAISE);
+        return this;
     }
 }

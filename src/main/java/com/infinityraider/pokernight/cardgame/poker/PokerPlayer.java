@@ -5,6 +5,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 
 public abstract class PokerPlayer {
     private final PokerGame game;
+    private int id;
 
     private PlayerState state;
     private int stack;
@@ -15,13 +16,23 @@ public abstract class PokerPlayer {
         this.game = game;
         this.state = PlayerState.WAITING;
         this.hand = new MutablePair<>();
+        this.stack = 0;
+        this.bet = 0;
     }
 
     public PokerGame getGame() {
         return this.game;
     }
 
-    public PokerPlayer dealCard(PlayingCard card) {
+    public int getPlayerId() {
+        return this.id;
+    }
+
+    void setPlayerId(int id) {
+        this.id = id;
+    }
+
+    PokerPlayer dealCard(PlayingCard card) {
         if(this.hand.getLeft() == null) {
             this.hand.setLeft(card);
         } else if(this.hand.getRight() == null) {
@@ -30,7 +41,7 @@ public abstract class PokerPlayer {
         return this;
     }
 
-    public PokerPlayer setState(PlayerState state) {
+    PokerPlayer setState(PlayerState state) {
         this.state = state;
         return this;
     }
@@ -51,13 +62,13 @@ public abstract class PokerPlayer {
         return this.bet;
     }
 
-    public int collectBet(){
+    int collectBet(){
         int bet = this.getCurrentBet();
         this.bet = 0;
         return bet;
     }
 
-    public void placeBlind(int amount) {
+    void placeBlind(int amount) {
         amount = Math.min(amount, this.stack);
         if(this.stack == amount) {
             this.setState(PlayerState.ALL_IN);
@@ -68,7 +79,7 @@ public abstract class PokerPlayer {
         this.bet = amount;
     }
 
-    public void raise(int amount) {
+    protected void raise(int amount) {
         amount = Math.min(amount, this.stack);
         if(this.stack == amount) {
             this.setState(PlayerState.ALL_IN);
@@ -80,7 +91,7 @@ public abstract class PokerPlayer {
         this.getGame().performPlayerAction(this, PlayerAction.RAISE);
     }
 
-    public void call() {
+    protected void call() {
         int amount = Math.min(this.getGame().getMinimumRaise(), this.stack);
         if(this.stack == amount) {
             this.state = PlayerState.ALL_IN;
@@ -92,12 +103,12 @@ public abstract class PokerPlayer {
         this.getGame().performPlayerAction(this, PlayerAction.CALL);
     }
 
-    public void fold() {
+    protected void fold() {
         this.state = PlayerState.FOLDED;
         this.getGame().performPlayerAction(this, PlayerAction.FOLD);
     }
 
-    public PokerPlayer returnHand() {
+    PokerPlayer returnHand() {
         this.hand.setLeft(null);
         this.hand.setRight(null);
         this.state = PlayerState.WAITING;
