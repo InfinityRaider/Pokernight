@@ -16,6 +16,7 @@ public class Names {
         public static final String GAME_POOL = "pn.game_pool";
 
         //poker table tags
+        public static final String TABLE_AXIS = "pn.table_axis";
         public static final String TABLE_FORMED = "pn.table_formed";
         public static final String TABLE_GAME = "pn.table_game";
         public static final String TABLE_MAIN = "pn.table_main";

@@ -6,6 +6,7 @@ import com.infinityraider.infinitylib.proxy.base.IProxyBase;
 import com.infinityraider.pokernight.proxy.IProxy;
 import com.infinityraider.pokernight.reference.Reference;
 import com.infinityraider.pokernight.registry.BlockRegistry;
+import com.infinityraider.pokernight.registry.ItemRegistry;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.SidedProxy;
 
@@ -39,7 +40,7 @@ public class Pokernight extends InfinityMod {
 
     @Override
     public Object getModItemRegistry() {
-        return this;
+        return ItemRegistry.getInstance();
     }
 
     @Override
