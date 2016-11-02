@@ -55,11 +55,11 @@ public class PokerGame {
         return this.closedCardsCache;
     }
 
-    protected GamePhase getPhase() {
+    public GamePhase getPhase() {
         return this.phase;
     }
 
-    protected CardDeck getDeck() {
+    public CardDeck getDeck() {
         return this.deck;
     }
 
@@ -73,6 +73,10 @@ public class PokerGame {
 
     public int getSmallBlind() {
         return Math.round(this.getBigBlind() / 2.0F);
+    }
+
+    public int getPrizPool() {
+        return this.pool;
     }
 
     public PokerPlayer getPlayerForIndex(int index) {
@@ -210,7 +214,7 @@ public class PokerGame {
                 it.remove();
             }
         }
-        int gains = this.pool / potentialWinners.size();
+        int gains = this.getPrizPool() / potentialWinners.size();
         for(Pair<PokerPlayer, PokerHand> winner : potentialWinners) {
             winner.first().addGains(gains);
             this.pool = this.pool - gains;
@@ -236,7 +240,7 @@ public class PokerGame {
         }
     }
 
-    protected boolean isBettingComplete() {
+    public boolean isBettingComplete() {
         return this.bettingComplete;
     }
 
