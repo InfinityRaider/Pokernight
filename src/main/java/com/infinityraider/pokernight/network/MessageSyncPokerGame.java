@@ -4,13 +4,12 @@ import com.infinityraider.infinitylib.network.MessageBase;
 import com.infinityraider.pokernight.block.tile.TileEntityPokerTable;
 import com.infinityraider.pokernight.cardgame.playingcards.PlayingCard;
 import com.infinityraider.pokernight.cardgame.poker.PokerGame;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.relauncher.Side;
 
 public class MessageSyncPokerGame extends MessageBase<IMessage>  {
-    private TileEntity table;
+    private TileEntityPokerTable table;
     private int[] deck;
     private int[] openCards;
     private int[] closedCards;
