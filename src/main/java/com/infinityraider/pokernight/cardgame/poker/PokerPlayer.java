@@ -67,7 +67,7 @@ public class PokerPlayer {
         return bet;
     }
 
-    void placeBlind(int amount) {
+    PokerPlayer placeBlind(int amount) {
         amount = Math.min(amount, this.stack);
         if(this.stack == amount) {
             this.setState(PlayerState.ALL_IN);
@@ -76,9 +76,10 @@ public class PokerPlayer {
         }
         this.stack = this.stack - amount;
         this.bet = amount;
+        return this;
     }
 
-    protected void raise(int amount) {
+    protected PokerPlayer raise(int amount) {
         amount = Math.min(amount, this.stack);
         if(this.stack == amount) {
             this.setState(PlayerState.ALL_IN);
@@ -88,9 +89,10 @@ public class PokerPlayer {
         this.stack = this.stack - amount;
         this.bet = this.bet + amount;
         this.getGame().performPlayerAction(this, PlayerAction.RAISE);
+        return this;
     }
 
-    protected void call() {
+    protected PokerPlayer call() {
         int amount = Math.min(this.getGame().getMinimumRaise(), this.stack);
         if(this.stack == amount) {
             this.state = PlayerState.ALL_IN;
@@ -100,11 +102,13 @@ public class PokerPlayer {
         this.stack = this.stack - amount;
         this.bet = this.bet + amount;
         this.getGame().performPlayerAction(this, PlayerAction.CALL);
+        return this;
     }
 
-    protected void fold() {
+    protected PokerPlayer fold() {
         this.state = PlayerState.FOLDED;
         this.getGame().performPlayerAction(this, PlayerAction.FOLD);
+        return this;
     }
 
     PokerPlayer returnHand() {

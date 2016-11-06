@@ -255,6 +255,11 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
         return Optional.of(this.player);
     }
 
+    @Override
+    public TileEntity getTile() {
+        return this.getMainTile();
+    }
+
     public PokerGame getCurrentGame() {
         if(!this.isMainTile()) {
             TileEntityPokerTable main = this.getMainTile();
