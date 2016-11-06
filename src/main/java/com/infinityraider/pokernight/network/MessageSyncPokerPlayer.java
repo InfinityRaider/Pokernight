@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.infinityraider.infinitylib.network.MessageBase;
 import com.infinityraider.infinitylib.network.serialization.IMessageSerializer;
 import com.infinityraider.pokernight.cardgame.poker.IPokerGameProvider;
+import com.infinityraider.pokernight.cardgame.poker.PokerPlayer;
 import com.infinityraider.pokernight.network.serializers.PokerGameProviderSerializer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -12,17 +13,19 @@ import net.minecraftforge.fml.relauncher.Side;
 
 import java.util.List;
 
-public class MessageSyncPokerGame extends MessageBase<IMessage> {
+public class MessageSyncPokerPlayer extends MessageBase<IMessage> {
     private IPokerGameProvider provider;
+    private int id;
     private NBTTagCompound tag;
 
-    public MessageSyncPokerGame() {
+    public MessageSyncPokerPlayer() {
         super();
     }
 
-    public MessageSyncPokerGame(IPokerGameProvider provider) {
-        this.provider = provider;
-        this.tag = provider.getCurrentGame().writeToNBT();
+    public MessageSyncPokerPlayer(PokerPlayer player) {
+        this.provider = player.getGame().getGameProvider();
+        this.id = player.getPlayerId();
+        this.tag = player.writeToNBT();
     }
 
     @Override
@@ -33,7 +36,10 @@ public class MessageSyncPokerGame extends MessageBase<IMessage> {
     @Override
     protected void processMessage(MessageContext ctx) {
         if(this.provider != null && this.tag != null) {
-            this.provider.getCurrentGame().readFromNBT(this.tag);
+            PokerPlayer player = this.provider.getCurrentGame().getPokerPlayerFromId(this.id);
+            if(player != null) {
+                player.readFromNBT(tag);
+            }
         }
     }
 

@@ -4,6 +4,8 @@ import com.infinityraider.infinitylib.InfinityMod;
 import com.infinityraider.infinitylib.network.INetworkWrapper;
 import com.infinityraider.infinitylib.proxy.base.IProxyBase;
 import com.infinityraider.pokernight.network.MessageSyncPokerGame;
+import com.infinityraider.pokernight.network.MessageSyncPokerGameElement;
+import com.infinityraider.pokernight.network.MessageSyncPokerPlayer;
 import com.infinityraider.pokernight.proxy.IProxy;
 import com.infinityraider.pokernight.reference.Reference;
 import com.infinityraider.pokernight.registry.BlockRegistry;
@@ -51,6 +53,8 @@ public class Pokernight extends InfinityMod {
 
     @Override
     public void registerMessages(INetworkWrapper wrapper) {
+        wrapper.registerMessage(MessageSyncPokerGameElement.class);
         wrapper.registerMessage(MessageSyncPokerGame.class);
+        wrapper.registerMessage(MessageSyncPokerPlayer.class);
     }
 }

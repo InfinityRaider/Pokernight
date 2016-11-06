@@ -19,6 +19,7 @@ public class Names {
 
         //poker table tags
         public static final String TABLE_AXIS = "pn.table_axis";
+        public static final String TABLE_BET_ITEM = "pn.table_bet_item";
         public static final String TABLE_FORMED = "pn.table_formed";
         public static final String TABLE_GAME = "pn.table_game";
         public static final String TABLE_ID = "pn.table_id";
@@ -26,6 +27,7 @@ public class Names {
         public static final String TABLE_MAIN_X = "pn.table_main_x";
         public static final String TABLE_MAIN_Y = "pn.table_main_y";
         public static final String TABLE_MAIN_Z = "pn.table_main_z";
+        public static final String TABLE_PLAYER = "pn.table_player";
         public static final String TABLE_PLAYER_ID = "pn.table_player_id";
 
         //poker player tags

@@ -6,13 +6,16 @@ import com.infinityraider.infinitylib.block.blockstate.InfinityProperty;
 import com.infinityraider.infinitylib.block.tile.TileEntityBase;
 import com.infinityraider.infinitylib.utility.debug.IDebuggable;
 import com.infinityraider.pokernight.block.BlockPokerTable;
+import com.infinityraider.pokernight.cardgame.poker.GamePhase;
 import com.infinityraider.pokernight.cardgame.poker.IPokerGameProvider;
 import com.infinityraider.pokernight.cardgame.poker.PokerGame;
 import com.infinityraider.pokernight.cardgame.poker.PokerPlayer;
+import com.infinityraider.pokernight.handler.GuiHandler;
 import com.infinityraider.pokernight.reference.Names;
 import com.infinityraider.pokernight.registry.BlockRegistry;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
@@ -24,6 +27,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class TileEntityPokerTable extends TileEntityBase implements IPokerGameProvider, IDebuggable {
     private static final Map<EntityPlayer, TileEntityPokerTable> formations = Maps.newIdentityHashMap();
@@ -46,6 +50,11 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
 
     /** Poker game data */
     private PokerGame currentGame;
+    private ItemStack bettingItem;
+    private boolean allowStackAdding;
+    private int bigBlind;
+    private int blindIncrease;
+    private List<TileEntityPokerTable> tables;
 
     public TileEntityPokerTable() {
         super();
@@ -178,6 +187,7 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
         BlockPos mainPos = new BlockPos(minX, ownPos.getY(), minZ);
         BlockPokerTable table = (BlockPokerTable) BlockRegistry.getInstance().blockPokerTable;
         TileEntityPokerTable mainTile = table.getTileEntity(this.getWorld(), mainPos);
+        mainTile.tables = Lists.newArrayList();
         int id = 0;
         for(int x = 0; x <= dx; x++) {
             for(int z = 0; z <= dz; z++) {
@@ -209,6 +219,7 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
                 TileEntityPokerTable tileTable = table.getTileEntity(this.getWorld(), pos);
                 tileTable.setMainTile(mainTile, id, axis);
                 this.getWorld().setBlockState(pos, state);
+                mainTile.tables.add(tileTable);
                 tileTable.markForUpdate();
                 id++;
             }
@@ -231,7 +242,43 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
                 main.setGameRules(player);
             }
         }
-        //TODO
+        GuiHandler.getInstance().openGameRuleGui(player, this);
+    }
+
+    public void startGame() {
+
+    }
+
+    public boolean canChangeSettings() {
+        return this.getCurrentGame().getPhase() == GamePhase.PRE_GAME;
+    }
+
+    public boolean trySetAllowStackAdding(boolean status) {
+        if(this.canChangeSettings()) {
+            this.allowStackAdding = status;
+        }
+        return this.allowStackAdding;
+    }
+
+    public int trySetBigBlind(int blind) {
+        if(this.canChangeSettings()) {
+            this.bigBlind = blind;
+        }
+        return blind;
+    }
+
+    public int trySetBigBlindIncrease(int amount) {
+        if(this.canChangeSettings()) {
+            this.blindIncrease = Math.max(0, amount);
+        }
+        return this.blindIncrease;
+    }
+
+    public ItemStack trySetBettingItem(ItemStack stack) {
+        if(this.canChangeSettings()) {
+            this.setBettingItem(stack);
+        }
+        return this.getBettingItem();
     }
 
     public Optional<EntityPlayer> getCurrentPlayer() {
@@ -253,6 +300,31 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
             }
         }
         return Optional.of(this.player);
+    }
+
+    public ItemStack getBettingItem() {
+        if(!this.isMainTile()) {
+            TileEntityPokerTable main = this.getMainTile();
+            if(main != null) {
+                return main.getBettingItem();
+            }
+        }
+        return this.bettingItem.copy();
+    }
+
+    public boolean setBettingItem(ItemStack stack) {
+        if(!this.isMainTile()) {
+            TileEntityPokerTable main = this.getMainTile();
+            if(main != null) {
+                return main.setBettingItem(stack);
+            }
+        }
+        if(!this.isFormed()) {
+            return false;
+        }
+        this.bettingItem = stack.copy();
+        this.bettingItem.stackSize = 1;
+        return true;
     }
 
     @Override
@@ -279,28 +351,11 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
             }
         }
         this.currentGame = game;
-        List<PokerPlayer> players = Lists.newArrayList();
-        int dx;
-        int dz;
-        if(this.getTableOrientation() == EnumFacing.Axis.X) {
-            dx = 4;
-            dz = 2;
-        } else {
-            dx = 2;
-            dz = 4;
-        }
-        for(int x = 0; x < dx; x++) {
-            for (int z = 0; z < dz; z++) {
-                TileEntity tile = getWorld().getTileEntity(this.getPos().add(x, 0, z));
-                if (tile instanceof TileEntityPokerTable) {
-                    Optional<PokerPlayer> player = ((TileEntityPokerTable) tile).getPokerPlayer();
-                    if (player.isPresent()) {
-                        players.add(player.get());
-                    }
-                }
-            }
-        }
-        return players;
+        return this.getTables().stream()
+                .map(table -> getPokerPlayer())
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -322,8 +377,41 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
                 return main.getBlind();
             }
         }
-        //TODO
-        return 0;
+        return this.bigBlind;
+    }
+
+    protected List<TileEntityPokerTable> getTables() {
+        if(!this.isMainTile) {
+            TileEntityPokerTable main = this.getMainTile();
+            if(main != null) {
+                return main.getTables();
+            }
+        }
+        if(!this.isFormed()) {
+            return Collections.emptyList();
+        } else {
+            if(this.tables == null) {
+                this.tables = Lists.newArrayList();
+                int dx;
+                int dz;
+                if (this.getTableOrientation() == EnumFacing.Axis.X) {
+                    dx = 4;
+                    dz = 2;
+                } else {
+                    dx = 2;
+                    dz = 4;
+                }
+                for (int x = 0; x < dx; x++) {
+                    for (int z = 0; z < dz; z++) {
+                        TileEntity tile = getWorld().getTileEntity(this.getPos().add(x, 0, z));
+                        if (tile instanceof TileEntityPokerTable) {
+                            this.tables.add((TileEntityPokerTable) tile);
+                        }
+                    }
+                }
+            }
+            return this.tables;
+        }
     }
 
     @Override
@@ -341,7 +429,10 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
         }
         if(this.currentPlayerId != null) {
             tag.setString(Names.NBT.TABLE_PLAYER_ID, this.currentPlayerId.toString());
-            //TODO: write player to NBT
+            tag.setTag(Names.NBT.TABLE_PLAYER, this.player.writeToNBT());
+        }
+        if(this.bettingItem != null) {
+            tag.setTag(Names.NBT.TABLE_BET_ITEM, this.bettingItem.writeToNBT(new NBTTagCompound()));
         }
         if(this.currentGame != null) {
             tag.setTag(Names.NBT.TABLE_GAME, this.currentGame.writeToNBT());
@@ -368,15 +459,20 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
         }
         if(tag.hasKey(Names.NBT.TABLE_PLAYER_ID)) {
             this.currentPlayerId = UUID.fromString(tag.getString(Names.NBT.TABLE_PLAYER_ID));
-            //TODO: read player from NBT
+            this.player = this.getCurrentGame().getPokerPlayerFromId(this.getTableId()).readFromNBT(tag.getCompoundTag(Names.NBT.TABLE_PLAYER));
         } else {
             this.currentPlayerId = null;
             this.player = null;
         }
+        if(tag.hasKey(Names.NBT.TABLE_BET_ITEM)) {
+            this.bettingItem = ItemStack.loadItemStackFromNBT(tag.getCompoundTag(Names.NBT.TABLE_BET_ITEM));
+        } else {
+            this.bettingItem = null;
+        }
         if(tag.hasKey(Names.NBT.TABLE_GAME)) {
             this.currentGame = new PokerGame(this).readFromNBT(tag.getCompoundTag(Names.NBT.TABLE_GAME));
         } else {
-            this.currentGame = null;
+            this.currentGame = this.isMainTile() ? new PokerGame(this) : null;
         }
     }
 

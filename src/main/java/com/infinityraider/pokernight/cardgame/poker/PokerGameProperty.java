@@ -1,7 +1,7 @@
 package com.infinityraider.pokernight.cardgame.poker;
 
 import com.infinityraider.infinitylib.network.serialization.*;
-import com.infinityraider.pokernight.network.MessageSyncPokerGame;
+import com.infinityraider.pokernight.network.MessageSyncPokerGameElement;
 import net.minecraft.tileentity.TileEntity;
 
 import java.util.List;
@@ -36,7 +36,7 @@ public class PokerGameProperty<T> {
 
     void sync() {
         if(!provider.getTile().getWorld().isRemote) {
-            new MessageSyncPokerGame(this).sendToAll();
+            new MessageSyncPokerGameElement(this).sendToAll();
         }
     }
 

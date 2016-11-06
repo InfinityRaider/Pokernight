@@ -1,4 +1,4 @@
-package com.infinityraider.pokernight.network;
+package com.infinityraider.pokernight.network.serializers;
 
 import com.infinityraider.infinitylib.network.serialization.IMessageReader;
 import com.infinityraider.infinitylib.network.serialization.IMessageSerializer;

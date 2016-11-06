@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.infinityraider.infinitylib.network.serialization.IMessageReader;
 import com.infinityraider.infinitylib.network.serialization.IMessageSerializer;
 import com.infinityraider.infinitylib.network.serialization.IMessageWriter;
-import com.infinityraider.pokernight.network.PlayingCardSerializer;
+import com.infinityraider.pokernight.network.serializers.PlayingCardSerializer;
 
 import java.util.Arrays;
 import java.util.Iterator;

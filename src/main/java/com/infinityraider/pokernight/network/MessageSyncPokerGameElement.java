@@ -3,26 +3,27 @@ package com.infinityraider.pokernight.network;
 import com.google.common.collect.ImmutableList;
 import com.infinityraider.infinitylib.network.MessageBase;
 import com.infinityraider.infinitylib.network.serialization.IMessageSerializer;
-import com.infinityraider.pokernight.cardgame.poker.IPokerGameProvider;
+import com.infinityraider.pokernight.cardgame.playingcards.CardCollection;
+import com.infinityraider.pokernight.cardgame.poker.PokerGameProperty;
+import com.infinityraider.pokernight.network.serializers.CardDeckSerializer;
+import com.infinityraider.pokernight.network.serializers.PlayingCardSerializer;
 import com.infinityraider.pokernight.network.serializers.PokerGameProviderSerializer;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.relauncher.Side;
 
 import java.util.List;
 
-public class MessageSyncPokerGame extends MessageBase<IMessage> {
-    private IPokerGameProvider provider;
-    private NBTTagCompound tag;
+public class MessageSyncPokerGameElement extends MessageBase<IMessage>  {
+    private PokerGameProperty property;
 
-    public MessageSyncPokerGame() {
+    public MessageSyncPokerGameElement() {
         super();
     }
 
-    public MessageSyncPokerGame(IPokerGameProvider provider) {
-        this.provider = provider;
-        this.tag = provider.getCurrentGame().writeToNBT();
+    public MessageSyncPokerGameElement(PokerGameProperty property) {
+        this();
+        this.property = property;
     }
 
     @Override
@@ -32,9 +33,7 @@ public class MessageSyncPokerGame extends MessageBase<IMessage> {
 
     @Override
     protected void processMessage(MessageContext ctx) {
-        if(this.provider != null && this.tag != null) {
-            this.provider.getCurrentGame().readFromNBT(this.tag);
-        }
+        //data is automatically synced when reading from the byte buf
     }
 
     @Override
@@ -45,7 +44,11 @@ public class MessageSyncPokerGame extends MessageBase<IMessage> {
     @Override
     protected List<IMessageSerializer> getNecessarySerializers() {
         return ImmutableList.of(
-                PokerGameProviderSerializer.getInstance()
+                PokerGameProviderSerializer.getInstance(),
+                PlayingCardSerializer.getInstance(),
+                CardCollection.Serializer.getInstance(),
+                CardDeckSerializer.getInstance(),
+                PokerGameProperty.Serializer.getInstance()
         );
     }
 }

@@ -6,6 +6,8 @@ import com.infinityraider.pokernight.cardgame.playingcards.CardCollection;
 import com.infinityraider.pokernight.cardgame.playingcards.CardDeck;
 import com.infinityraider.pokernight.cardgame.playingcards.PlayingCard;
 import com.infinityraider.pokernight.cardgame.poker.hand.PokerHand;
+import com.infinityraider.pokernight.network.MessageSyncPokerGame;
+import com.infinityraider.pokernight.network.MessageSyncPokerPlayer;
 import com.infinityraider.pokernight.reference.Names;
 import com.mojang.realmsclient.util.Pair;
 import net.minecraft.nbt.NBTTagCompound;
@@ -52,10 +54,11 @@ public class PokerGame {
         this.bettingComplete = new PokerGameProperty<>(gameProvider, list, Boolean.class);
         this.blind = new PokerGameProperty<>(gameProvider, list, Integer.class);
         this.lastRaise = new PokerGameProperty<>(gameProvider, list, Integer.class);
+        this.properties = ImmutableList.copyOf(list);
         this.deck.set(new CardDeck());
         this.playerDealer.set(-1);
         this.pool.set(0);
-        this.properties = ImmutableList.copyOf(list);
+        this.phase.set(GamePhase.PRE_GAME);
     }
 
     protected PokerGameProperty getProperty(int id) {
@@ -78,7 +81,7 @@ public class PokerGame {
         return this.phase.get();
     }
 
-    public CardDeck getDeck() {
+    protected CardDeck getDeck() {
         return this.deck.get();
     }
 
@@ -98,8 +101,12 @@ public class PokerGame {
         return this.pool.get();
     }
 
-    public PokerPlayer getPlayerForIndex(int index) {
-        return this.players.get(activePlayers.get()[(this.playerDealer.get() + index + 3) % this.activePlayers.get().length]);
+    public PokerPlayer getPokerPlayerFromId(int id) {
+        return this.players.get(id);
+    }
+
+    protected PokerPlayer getPlayerForIndex(int index) {
+        return this.getPokerPlayerFromId(activePlayers.get()[(this.playerDealer.get() + index + 3) % this.activePlayers.get().length]);
     }
 
     public PokerPlayer getDealer() {
@@ -134,6 +141,7 @@ public class PokerGame {
         this.openCards.set(new CardCollection(5));
         this.closedCards.set(new CardCollection(3));
         this.playerDealer.set(this.playerDealer.get() + 1);
+        this.syncPokerGame();
     }
 
     protected void gatherPlayers() {
@@ -153,6 +161,7 @@ public class PokerGame {
                 resetPlayerStatesOnNewRaise();
             }
             this.incrementPlayerTurn();
+            this.syncPokerPlayer(player);
             if(this.isBettingComplete()) {
                 this.collectBets();
                 this.advanceGamePhase();
@@ -164,6 +173,7 @@ public class PokerGame {
         int pool = this.pool.get();
         for(PokerPlayer player : this.players.values()) {
             pool = player.collectBet() + pool;
+            this.syncPokerPlayer(player);
         }
         this.pool.set(pool);
     }
@@ -174,6 +184,7 @@ public class PokerGame {
         this.bettingComplete.set(false);
         for(PokerPlayer player : this.players.values()) {
             player.setState(PlayerState.WAITING);
+            this.syncPokerPlayer(player);
         }
         if(this.phase.get() == GamePhase.END_GAME) {
             this.splitPrizeAmongWinners();
@@ -188,6 +199,8 @@ public class PokerGame {
                 this.lastRaise.set(this.getBigBlind());
                 this.lastRaiser.set(this.getBigBlindPlayer().placeBlind(this.getBigBlind()).getPlayerId());
                 this.getSmallBlindPlayer().placeBlind(this.getSmallBlind());
+                this.syncPokerPlayer(this.getBigBlindPlayer());
+                this.syncPokerPlayer(this.getSmallBlindPlayer());
             }
         }
     }
@@ -240,6 +253,7 @@ public class PokerGame {
         int pool = this.pool.get();
         for(Pair<PokerPlayer, PokerHand> winner : potentialWinners) {
             winner.first().addGains(gains);
+            this.syncPokerPlayer(winner.first());
             pool = pool - gains;
         }
         this.pool.set(pool);
@@ -251,6 +265,7 @@ public class PokerGame {
                 continue;
             }
             player.setState(PlayerState.WAITING);
+            this.syncPokerPlayer(player);
         }
     }
 
@@ -271,18 +286,24 @@ public class PokerGame {
     }
 
     protected void dealCardsToPlayers() {
-        for(int i = 0; i < this.activePlayers.get().length * 2; i++) {
+        int players = this.activePlayers.get().length;
+        for(int i = 0; i <  players * 2; i++) {
             Optional<PlayingCard> card = this.deck.get().dealCard();
+            PokerPlayer player = this.getPlayerForIndex(i);
             if(card.isPresent()) {
-                this.getPlayerForIndex(i).dealCard(card.get());
+                player.dealCard(card.get());
             }
             this.deck.sync();
+            if(i >= players) {
+                this.syncPokerPlayer(player);
+            }
         }
     }
 
     protected void returnCards() {
         for(PokerPlayer player : this.players.values()) {
             player.returnHand();
+            this.syncPokerPlayer(player);
         }
     }
 
@@ -349,5 +370,13 @@ public class PokerGame {
             this.players.get(entry.getInteger(Names.NBT.ID)).readFromNBT(entry);
         }
         this.activePlayers.set(tag.getIntArray(Names.NBT.GAME_ACTIVE_PLAYERS));
+    }
+
+    protected void syncPokerGame() {
+        new MessageSyncPokerGame(this.getGameProvider()).sendToAll();
+    }
+
+    protected void syncPokerPlayer(PokerPlayer player) {
+        new MessageSyncPokerPlayer(player).sendToAll();
     }
 }
