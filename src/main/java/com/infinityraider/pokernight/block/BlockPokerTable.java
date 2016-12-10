@@ -4,6 +4,7 @@ import com.infinityraider.infinitylib.block.BlockTileCustomRenderedBase;
 import com.infinityraider.infinitylib.block.blockstate.InfinityProperty;
 import com.infinityraider.infinitylib.item.IItemWithRecipe;
 import com.infinityraider.pokernight.block.tile.TileEntityPokerTable;
+import com.infinityraider.pokernight.reference.Reference;
 import com.infinityraider.pokernight.render.RenderBlockPokerTable;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.PropertyBool;
@@ -15,6 +16,7 @@ import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.translation.I18n;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
@@ -118,6 +120,11 @@ public class BlockPokerTable extends BlockTileCustomRenderedBase<TileEntityPoker
             return !table.isFormed();
         }
         return false;
+    }
+
+    @Override
+    public void addInformation(ItemStack stack, EntityPlayer player, List<String> tooltip, boolean advanced) {
+        tooltip.add(I18n.translateToLocal(Reference.MOD_ID + ":tooltip.poker_table"));
     }
 
     @Override

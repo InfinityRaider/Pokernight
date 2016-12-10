@@ -15,11 +15,13 @@ public class PokerGameProperty<T> {
     private IPokerGameProvider provider;
     private T property;
 
-    public PokerGameProperty(IPokerGameProvider provider, List<PokerGameProperty> properties, Class<T> clazz) {
+    @SuppressWarnings("unchecked")
+    public PokerGameProperty(IPokerGameProvider provider, List<PokerGameProperty> properties, T initial) {
         this.id = properties.size();
-        IMessageSerializer<T> serializer = MessageSerializerStore.getMessageSerializer(clazz).get();
-        this.writer = serializer.getWriter(clazz);
-        this.reader = serializer.getReader(clazz);
+        this.property = initial;
+        IMessageSerializer<T> serializer = MessageSerializerStore.getMessageSerializer((Class<T>) initial.getClass()).get();
+        this.writer = serializer.getWriter((Class<T>) initial.getClass());
+        this.reader = serializer.getReader((Class<T>) initial.getClass());
         this.provider = provider;
         properties.add(this);
     }
@@ -35,7 +37,8 @@ public class PokerGameProperty<T> {
     }
 
     void sync() {
-        if(!provider.getTile().getWorld().isRemote) {
+        TileEntity tile = provider.getTile();
+        if(tile.getWorld() != null && !tile.getWorld().isRemote) {
             new MessageSyncPokerGameElement(this).sendToAll();
         }
     }

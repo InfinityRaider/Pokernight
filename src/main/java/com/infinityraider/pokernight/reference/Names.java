@@ -23,7 +23,6 @@ public class Names {
         public static final String TABLE_FORMED = "pn.table_formed";
         public static final String TABLE_GAME = "pn.table_game";
         public static final String TABLE_ID = "pn.table_id";
-        public static final String TABLE_MAIN = "pn.table_main";
         public static final String TABLE_MAIN_X = "pn.table_main_x";
         public static final String TABLE_MAIN_Y = "pn.table_main_y";
         public static final String TABLE_MAIN_Z = "pn.table_main_z";

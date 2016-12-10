@@ -1,0 +1,10 @@
+//blocks
+tile.pokernight:poker_table.name=Poker Table
+
+//tooltips
+pokernight:tooltip.poker_table=Place in a 2x4 pattern and consecutively shift + click to opposite corners to form the table
+
+//messages
+pokernight:msg.started_formation=Started poker table formation
+pokernight:msg.formation_complete=Poker table formation completed
+pokernight:msg.wrong_range=Formation failed: wrong size

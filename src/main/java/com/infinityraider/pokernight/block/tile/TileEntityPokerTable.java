@@ -37,7 +37,6 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
     }
 
     /** Multi-block data */
-    private boolean isMainTile;
     private boolean isFormed;
     private TileEntityPokerTable mainTile;
     private BlockPos mainTilePos;
@@ -65,18 +64,21 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
     }
 
     public boolean isMainTile() {
-        return this.isMainTile;
+        return this.getPos().equals(this.mainTilePos);
     }
 
     public TileEntityPokerTable getMainTile() {
         if(this.isFormed()) {
             if(this.mainTile == null) {
-                TileEntity tile = this.getWorld().getTileEntity(this.mainTilePos);
-                if(!(tile instanceof TileEntityPokerTable)) {
-                    this.mainTile = new TileEntityPokerTable();
-                    this.getWorld().setTileEntity(this.mainTilePos, mainTile);
+                if(this.isMainTile()) {
+                    this.mainTile = this;
                 } else {
-                    this.mainTile = (TileEntityPokerTable) tile;
+                    TileEntity tile = this.getWorld().getTileEntity(this.mainTilePos);
+                    if (tile instanceof TileEntityPokerTable) {
+                        this.mainTile = (TileEntityPokerTable) tile;
+                    } else {
+                        return null;
+                    }
                 }
             }
             return this.mainTile;
@@ -97,10 +99,10 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
         if(mainTile != null) {
             this.tableId = id;
             this.axis = axis;
-            this.isMainTile = mainTile == this;
             this.isFormed = true;
             this.mainTile = mainTile;
             this.mainTilePos = mainTile.getPos();
+            this.markForUpdate();
         }
     }
 
@@ -220,7 +222,6 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
                 tileTable.setMainTile(mainTile, id, axis);
                 this.getWorld().setBlockState(pos, state);
                 mainTile.tables.add(tileTable);
-                tileTable.markForUpdate();
                 id++;
             }
         }
@@ -360,7 +361,7 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
 
     @Override
     public void onGameCompleted() {
-        if(!this.isMainTile) {
+        if(!this.isMainTile()) {
             TileEntityPokerTable main = this.getMainTile();
             if(main != null) {
                 main.onGameCompleted();
@@ -371,7 +372,7 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
 
     @Override
     public int getBlind() {
-        if(!this.isMainTile) {
+        if(!this.isMainTile()) {
             TileEntityPokerTable main = this.getMainTile();
             if(main != null) {
                 return main.getBlind();
@@ -381,7 +382,7 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
     }
 
     protected List<TileEntityPokerTable> getTables() {
-        if(!this.isMainTile) {
+        if(!this.isMainTile()) {
             TileEntityPokerTable main = this.getMainTile();
             if(main != null) {
                 return main.getTables();
@@ -416,7 +417,6 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
 
     @Override
     protected void writeTileNBT(NBTTagCompound tag) {
-        tag.setBoolean(Names.NBT.TABLE_MAIN, this.isMainTile);
         tag.setBoolean(Names.NBT.TABLE_FORMED, this.isFormed);
         tag.setInteger(Names.NBT.TABLE_ID, this.tableId);
         if(this.axis != null) {
@@ -441,7 +441,6 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
 
     @Override
     protected void readTileNBT(NBTTagCompound tag) {
-        this.isMainTile = tag.getBoolean(Names.NBT.TABLE_MAIN);
         this.isFormed = tag.getBoolean(Names.NBT.TABLE_FORMED);
         this.tableId = tag.getInteger(Names.NBT.TABLE_ID);
         if(tag.hasKey(Names.NBT.TABLE_AXIS)) {
@@ -469,10 +468,14 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
         } else {
             this.bettingItem = null;
         }
-        if(tag.hasKey(Names.NBT.TABLE_GAME)) {
-            this.currentGame = new PokerGame(this).readFromNBT(tag.getCompoundTag(Names.NBT.TABLE_GAME));
+        if(this.isMainTile()) {
+            if (tag.hasKey(Names.NBT.TABLE_GAME)) {
+                this.currentGame = new PokerGame(this).readFromNBT(tag.getCompoundTag(Names.NBT.TABLE_GAME));
+            } else {
+                this.currentGame = new PokerGame(this);
+            }
         } else {
-            this.currentGame = this.isMainTile() ? new PokerGame(this) : null;
+            this.currentGame = null;
         }
     }
 
@@ -489,6 +492,13 @@ public class TileEntityPokerTable extends TileEntityBase implements IPokerGamePr
 
     public void addDebugInfo(List<String> lines) {
         IBlockState state = this.getState();
+        lines.add("formed: " + this.isFormed());
+        lines.add("isMain: " + this.isMainTile());
+        if(this.mainTilePos != null) {
+            lines.add("main pos: (" + this.mainTilePos.getX() + ", " + this.mainTilePos.getY() + ", " + this.mainTilePos.getZ() + ")");
+        } else {
+            lines.add("main pos: n.a.");
+        }
         if(state.getBlock() instanceof BlockPokerTable) {
             lines.add("NORTH: " + BlockPokerTable.Properties.CONNECTION_NORTH.getValue(state));
             lines.add("EAST: " + BlockPokerTable.Properties.CONNECTION_EAST.getValue(state));

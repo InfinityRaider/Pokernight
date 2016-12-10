@@ -19,8 +19,8 @@ public class CardDeck {
     public CardDeck(ICardDeckProvider provider) {
         this.provider = provider;
         this.rng = new Random();
-        this.shuffle();
         this.dealt = new HashSet<>();
+        this.shuffle();
     }
 
     public ICardDeckProvider getProvider() {

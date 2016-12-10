@@ -42,23 +42,19 @@ public class PokerGame {
         List<PokerGameProperty> list = Lists.newArrayList();
         this.players = new IdentityHashMap<>();
         this.gameProvider = provider;
-        this.deck = new PokerGameProperty<>(gameProvider, list, CardDeck.class);
-        this.openCards = new PokerGameProperty<>(gameProvider, list, CardCollection.class);
-        this.closedCards = new PokerGameProperty<>(gameProvider, list, CardCollection.class);
-        this.activePlayers = new PokerGameProperty<>(gameProvider, list, int[].class);
-        this.phase = new PokerGameProperty<>(gameProvider, list, GamePhase.class);
-        this.playerDealer = new PokerGameProperty<>(gameProvider, list, Integer.class);
-        this.playerTurn = new PokerGameProperty<>(gameProvider, list, Integer.class);
-        this.lastRaiser = new PokerGameProperty<>(gameProvider, list, Integer.class);
-        this.pool = new PokerGameProperty<>(gameProvider, list, Integer.class);
-        this.bettingComplete = new PokerGameProperty<>(gameProvider, list, Boolean.class);
-        this.blind = new PokerGameProperty<>(gameProvider, list, Integer.class);
-        this.lastRaise = new PokerGameProperty<>(gameProvider, list, Integer.class);
+        this.deck = new PokerGameProperty<>(gameProvider, list, new CardDeck());
+        this.openCards = new PokerGameProperty<>(gameProvider, list, new CardCollection(5));
+        this.closedCards = new PokerGameProperty<>(gameProvider, list, new CardCollection(3));
+        this.activePlayers = new PokerGameProperty<>(gameProvider, list, new int[0]);
+        this.phase = new PokerGameProperty<>(gameProvider, list, GamePhase.PRE_GAME);
+        this.playerDealer = new PokerGameProperty<>(gameProvider, list, -1);
+        this.playerTurn = new PokerGameProperty<>(gameProvider, list, 0);
+        this.lastRaiser = new PokerGameProperty<>(gameProvider, list, 0);
+        this.pool = new PokerGameProperty<>(gameProvider, list, 0);
+        this.bettingComplete = new PokerGameProperty<>(gameProvider, list, false);
+        this.blind = new PokerGameProperty<>(gameProvider, list, 0);
+        this.lastRaise = new PokerGameProperty<>(gameProvider, list,0);
         this.properties = ImmutableList.copyOf(list);
-        this.deck.set(new CardDeck());
-        this.playerDealer.set(-1);
-        this.pool.set(0);
-        this.phase.set(GamePhase.PRE_GAME);
     }
 
     protected PokerGameProperty getProperty(int id) {

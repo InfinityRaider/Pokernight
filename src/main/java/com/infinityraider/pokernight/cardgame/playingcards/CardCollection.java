@@ -19,6 +19,7 @@ public class CardCollection implements Iterable<PlayingCard> {
     public CardCollection(int size) {
         this.cards = new PlayingCard[size];
         this.index = 0;
+        this.cache = ImmutableList.of();
     }
 
     public boolean addCard(PlayingCard card) {
